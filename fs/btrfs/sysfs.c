@@ -35,13 +35,13 @@
  * The #define to_btrfs_kobject(x) is used to get the pointer to the structure 
  * using the pointer to a member of the structure.
  * 
- * v1 Comment: As of now the struct contains just the kobject and an integer. 
- * The struct and the dummy is defined instead of using directly so that it 
- * can be used in the future.
+ * v1 Comment: As of now the struct contains just the kobject and a void pointer
+ * The idea is that the void pointer can be put to use in certain cases without 
+ * complicating the code.
  */
 struct btrfs_kobject {
 	struct kobject kobj;
-	int val;
+	void *ptr;
 };
 #define to_btrfs_kobject(x) container_of(x, struct btrfs_kobject, kobj)
 
@@ -198,6 +198,10 @@ struct btrfs_kobject_attr btrfs_attr_##_name = __ATTR(_name,_mode,_show,_store)
 };
  */
 
+/*
+ * Use BTRFS_KTYPE_DEFINE to define the ktypes.
+ * To use the ktype defined use with BTRFS_KTYPE	
+ */
 #define BTRFS_KTYPE_DEFINE(_name,_sysfs_ops,_release,_default_attrs) \
 static struct kobj_type btrfs_ktype_##_name = { \
 	.sysfs_ops = &_sysfs_ops,	\
@@ -248,9 +252,9 @@ static struct btrfs_kobject *btrfs_info;
 /*
  * Setup for /sys/fs/btrfs/info Directory
  */
-static BTRFS_ATTR(label,0444,btrfs_attr_label_show,btrfs_attr_label_store)
+static BTRFS_ATTR(num_devices,0444,NULL,NULL);
 static struct attribute *btrfs_info_default_attrs[] = {
-	ATTR_LIST(label),
+	ATTR_LIST(num_devices),
 	NULL,
 };
 BTRFS_KTYPE_DEFINE(info, btrfs_sysfs_ops, btrfs_kobject_release, \
@@ -287,6 +291,10 @@ BTRFS_KTYPE_DEFINE(devices, btrfs_sysfs_ops, btrfs_kobject_release, \
 /*
  * static struct btrfs_kobject *btrfs_kobject_create(const char *name) is used
  * to create btrfs_kobject(s) under btrfs_kset. 
+ * 
+ * NOTE: Please make sure that you have defined a ktype using BTRFS_KTYPE_DEFINE
+ * with the name of the directory that you wish to create. That is the directory
+ * name should be the same as the name parameter passed to BTRFS_KTYPE_DEFINE
  */
 static struct btrfs_kobject *btrfs_kobject_create(const char *name)
 {
@@ -330,26 +338,23 @@ static void btrfs_kobject_destroy(struct btrfs_kobject *btrfs_kobj)
  * call btrfs_kobject_create. Entries should not be trivially added
  * Make sure that adequate error handling is done if entry is added.
  *
- * v1 comment: As of now only three kobjects are defined. Also thinking 
- * of alternative implementation by declaring a function which will do 
- * all the calls to btrfs_kobject_create so as to have only one entry in
- * btrfs_init_sysfs (What is better?)
  */
-int btrfs_init_sysfs(void)
-{
-	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
-	if (!btrfs_kset)
-		return -ENOMEM;
+
+int btrfs_static_init_sysfs(void)
+{	
 	/*Initializing btrfs_kobject*/
 	btrfs_devices = btrfs_kobject_create("devices");
 	if(!btrfs_devices)
 		goto btrfs_devices_error;
+	//btrfs_static_init_devices_sysfs();
 	btrfs_health = btrfs_kobject_create("health");
 	if(!btrfs_health)
 		goto btrfs_health_error;
+	//btrfs_static_init_health_sysfs();
 	btrfs_info = btrfs_kobject_create("info");
 	if(!btrfs_info)
 		goto btrfs_info_error;
+//	btrfs_static_init_info_sysfs();
 	return 0;
 
 btrfs_info_error:
@@ -358,6 +363,14 @@ btrfs_health_error:
 	btrfs_kobject_destroy(btrfs_health);
 btrfs_devices_error:
 	return -EINVAL;
+}
+
+int btrfs_init_sysfs(void)
+{
+	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
+	if (!btrfs_kset)
+		return -ENOMEM;
+	return btrfs_static_init_sysfs();
 }
 
 void btrfs_exit_sysfs(void)
