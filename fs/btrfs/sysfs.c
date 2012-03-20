@@ -58,9 +58,9 @@ struct btrfs_kobject {
 struct btrfs_kobject_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct btrfs_kobject *kobj, \
-		struct btrfs_kobject_attr *attr, char *buf);
+			struct btrfs_kobject_attr *attr, char *buf);
 	ssize_t (*store)(struct btrfs_kobject *kobj, \
-		struct btrfs_kobject_attr *attr, const char *buf, size_t len);
+			struct btrfs_kobject_attr *attr, const char *buf, size_t len);
 };
 
 #define to_btrfs_kobject_attr(x) container_of(x, struct btrfs_kobject_attr,attr)
@@ -185,7 +185,7 @@ struct btrfs_kobject_attr btrfs_attr_##_name = __ATTR(_name,_mode,_show,_store)
 		NULL,
 	};
 
-/*
+
  * static struct kobj_type btrfs_ktype is defined to be the ktype of 
  * btrfs_kobject. It includes the implementations of sysfs_ops, release
  * and definition of btrfs_attrs for the same.
@@ -198,18 +198,6 @@ struct btrfs_kobject_attr btrfs_attr_##_name = __ATTR(_name,_mode,_show,_store)
 };
  */
 
-/*
- * Use BTRFS_KTYPE_DEFINE to define the ktypes.
- * To use the ktype defined use with BTRFS_KTYPE	
- */
-#define BTRFS_KTYPE_DEFINE(_name,_sysfs_ops,_release,_default_attrs) \
-static struct kobj_type btrfs_ktype_##_name = { \
-	.sysfs_ops = &_sysfs_ops,	\
-	.release = _release	\
-	.default_attrs = _default_attrs, \
-};
-
-#define BTRFS_KTYPE(_name) &btrfs_ktype_##_name
 
 /* /sys/fs/btrfs/ entry */
 static struct kset *btrfs_kset;
@@ -257,46 +245,52 @@ static struct attribute *btrfs_info_default_attrs[] = {
 	ATTR_LIST(num_devices),
 	NULL,
 };
-BTRFS_KTYPE_DEFINE(info, btrfs_sysfs_ops, btrfs_kobject_release, \
-	btrfs_info_default_attrs);
+
+static struct kobj_type btrfs_ktype_info = {
+	.sysfs_ops = &btrfs_sysfs_ops,
+	.release = btrfs_kobject_release,
+	.default_attrs = btrfs_info_default_attrs,
+};
 
 /*
  * Setup for /sys/fs/btrfs/health Directory
  * 
  * v1 Comment: Filling up with dummy variable
  */
-static BTRFS_ATTR(dummy,0444,NULL,NULL)
+static BTRFS_ATTR(dummy,0444,NULL,NULL);
 static struct attribute *btrfs_health_default_attrs[] = {
 	ATTR_LIST(dummy),
 	NULL,
 };
-BTRFS_KTYPE_DEFINE(health, btrfs_sysfs_ops, btrfs_kobject_release, \
-	btrfs_health_default_attrs);
-
+static struct kobj_type btrfs_ktype_health = {
+	.sysfs_ops = &btrfs_sysfs_ops,
+	.release = btrfs_kobject_release,
+	.default_attrs = btrfs_health_default_attrs,
+};
 
 /*
  * Setup for /sys/fs/btrfs/devices Directory
  * 
  * v1 Comment: Filling up with dummy variable
  */
-static BTRFS_ATTR(dummy,0444,NULL,NULL)
+static BTRFS_ATTR(dummy1,0444,NULL,NULL);
 static struct attribute *btrfs_devices_default_attrs[] = {
-	ATTR_LIST(dummy),
+	ATTR_LIST(dummy1),
 	NULL,
 };
-BTRFS_KTYPE_DEFINE(devices, btrfs_sysfs_ops, btrfs_kobject_release, \
-	btrfs_devices_default_attrs);
-
+static struct kobj_type btrfs_ktype_devices = {
+	.sysfs_ops = &btrfs_sysfs_ops,
+	.release = btrfs_kobject_release,
+	.default_attrs = btrfs_devices_default_attrs,
+};
 
 /*
  * static struct btrfs_kobject *btrfs_kobject_create(const char *name) is used
  * to create btrfs_kobject(s) under btrfs_kset. 
  * 
- * NOTE: Please make sure that you have defined a ktype using BTRFS_KTYPE_DEFINE
- * with the name of the directory that you wish to create. That is the directory
- * name should be the same as the name parameter passed to BTRFS_KTYPE_DEFINE
  */
-static struct btrfs_kobject *btrfs_kobject_create(const char *name)
+static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
+				struct kobj_type ktype)
 {
 	struct btrfs_kobject *btrfs_kobj;
 	int ret;
@@ -311,8 +305,8 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name)
 	 * kobject, we don't have to set a parent for the kobject, the kobject
 	 * will be placed beneath that kset automatically.
 	 */
-	ret = kobject_init_and_add(&btrfs_kobj->kobj,BTRFS_KTYPE(name), \
-									NULL,"%s", name);
+	ret = kobject_init_and_add(&btrfs_kobj->kobj, &ktype, \
+					NULL,"%s", name);
 	if (ret) {
 		kobject_put(&btrfs_kobj->kobj);
 		return NULL;
@@ -329,8 +323,8 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name)
 static void btrfs_kobject_destroy(struct btrfs_kobject *btrfs_kobj)
 {
 	kobject_put(&btrfs_kobj->kobj);
-}
 
+}
 /* 
  * btrfs_init_sysfs is used to initialize the btrfs sysfs implementation. 
  * This function is used to initialize btrfs_kset and also the btrfs_kobject
@@ -343,18 +337,18 @@ static void btrfs_kobject_destroy(struct btrfs_kobject *btrfs_kobj)
 int btrfs_static_init_sysfs(void)
 {	
 	/*Initializing btrfs_kobject*/
-	btrfs_devices = btrfs_kobject_create("devices");
+	btrfs_devices = btrfs_kobject_create("devices",btrfs_ktype_devices);
 	if(!btrfs_devices)
 		goto btrfs_devices_error;
 	//btrfs_static_init_devices_sysfs();
-	btrfs_health = btrfs_kobject_create("health");
+	btrfs_health = btrfs_kobject_create("health",btrfs_ktype_health);
 	if(!btrfs_health)
 		goto btrfs_health_error;
 	//btrfs_static_init_health_sysfs();
-	btrfs_info = btrfs_kobject_create("info");
+	btrfs_info = btrfs_kobject_create("info",btrfs_ktype_info);
 	if(!btrfs_info)
 		goto btrfs_info_error;
-//	btrfs_static_init_info_sysfs();
+	//btrfs_static_init_info_sysfs();
 	return 0;
 
 btrfs_info_error:
