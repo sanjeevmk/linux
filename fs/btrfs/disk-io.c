@@ -2568,8 +2568,7 @@ static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 		/*+smk*/
 
 		printk_ratelimited(KERN_WARNING "lost page write due to "
-/*+smk*/					"I/O error on %s\n",
-/*+smk*/					bdevname(bh->b_bdev, b));
+/*+smk*/					"I/O error on %s\n",device->name);
 //					"I/O error on %s\n",
 //				       bdevname(bh->b_bdev, b));
 		/* note, we dont' set_buffer_write_io_error because we have
@@ -2759,7 +2758,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 			/*+smk*/	
 			btrfs_device_stat_inc(&device->cnt_flush_io_errs);
 			device->device_stats_dirty=1;
-			btrfs_devie_stat_print_on_error(device);
+			btrfs_device_stat_print_on_error(device);
 			/*+smk*/
 		}
 

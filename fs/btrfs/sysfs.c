@@ -389,3 +389,8 @@ void btrfs_exit_sysfs(void)
  * 	-btrfs_kobject
  * 	-btrfs_ktype
  */
+	
+static ssize_t btrfs_device_stats_show(struct btrfs_kobject *btrfs_kobj,
+	struct btrfs_kobject_attr *attr, char *buf)
+{
+}
