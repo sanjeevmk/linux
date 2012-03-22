@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  * Copyright (C) 2012 Gautam Akiwate <gautam.akiwate@gmail.com>
+ * Copyright (C) 2012 Shravan Aras <shravan@kushraho.com>
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
  * License v2 as published by the Free Software Foundation.
@@ -235,6 +236,7 @@ static struct btrfs_kobject *btrfs_info;
  * We have defined a generic sysfs_ops and release functions for btrfs_kobjects 
  * and in nearly all the case btrfs_sysfs_ops and btrfs_kobject_release 
  * should suffice.
+ m
  */
 
 /*
@@ -284,16 +286,31 @@ static struct kobj_type btrfs_ktype_devices = {
 	.default_attrs = btrfs_devices_default_attrs,
 };
 
+static BTRFS_ATTR(label,0444,NULL,NULL);
+static struct attribute *btrfs_device_default_attrs[] = {
+	ATTR_LIST(label),
+	NULL,
+};
+static struct kobj_type btrfs_ktype_device = {
+	.sysfs_ops = &btrfs_sysfs_ops,
+	.release = btrfs_kobject_release,
+	.default_attrs = btrfs_device_default_attrs,
+};
 /*
  * static struct btrfs_kobject *btrfs_kobject_create(const char *name) is used
  * to create btrfs_kobject(s) under btrfs_kset. 
  * 
  */
 static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
-				struct kobj_type ktype)
+				struct kobj_type ktype, struct btrfs_kobject *btrfs_parent)
 {
 	struct btrfs_kobject *btrfs_kobj;
+	struct kobject *parent_kobj;
 	int ret;
+	parent_kobj = NULL;
+	if(btrfs_parent != NULL) {
+		parent_kobj = &btrfs_parent->kobj;
+	}
 	/* Allocate memory for object */
 	btrfs_kobj = kzalloc(sizeof(*btrfs_kobj), GFP_KERNEL);
 	if (!btrfs_kobj)
@@ -306,7 +323,7 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
 	 * will be placed beneath that kset automatically.
 	 */
 	ret = kobject_init_and_add(&btrfs_kobj->kobj, &ktype, \
-					NULL,"%s", name);
+					parent_kobj,"%s", name);
 	if (ret) {
 		kobject_put(&btrfs_kobj->kobj);
 		return NULL;
@@ -337,18 +354,15 @@ static void btrfs_kobject_destroy(struct btrfs_kobject *btrfs_kobj)
 int btrfs_static_init_sysfs(void)
 {	
 	/*Initializing btrfs_kobject*/
-	btrfs_devices = btrfs_kobject_create("devices",btrfs_ktype_devices);
+	btrfs_devices = btrfs_kobject_create("devices",btrfs_ktype_devices,NULL);
 	if(!btrfs_devices)
 		goto btrfs_devices_error;
-	//btrfs_static_init_devices_sysfs();
-	btrfs_health = btrfs_kobject_create("health",btrfs_ktype_health);
+	btrfs_health = btrfs_kobject_create("health",btrfs_ktype_health,NULL);
 	if(!btrfs_health)
 		goto btrfs_health_error;
-	//btrfs_static_init_health_sysfs();
-	btrfs_info = btrfs_kobject_create("info",btrfs_ktype_info);
+	btrfs_info = btrfs_kobject_create("info",btrfs_ktype_info,NULL);
 	if(!btrfs_info)
 		goto btrfs_info_error;
-	//btrfs_static_init_info_sysfs();
 	return 0;
 
 btrfs_info_error:
@@ -365,6 +379,43 @@ int btrfs_init_sysfs(void)
 	if (!btrfs_kset)
 		return -ENOMEM;
 	return btrfs_static_init_sysfs();
+}
+
+/* Dynamic functions which create btrfs objects. */
+/* Function to create devices and place them under the devices
+ * directory.
+ */
+ int btrfs_create_device(struct kobject *super_kobj, u8 *label)
+ {
+	struct btrfs_kobject *btrfs_device;
+
+	btrfs_device = btrfs_kobject_create(label,btrfs_ktype_device,btrfs_devices);
+	if(!btrfs_device)
+		goto btrfs_device_error;
+	btrfs_device->ptr = (void*)super_kobj;
+
+	return 0;
+
+btrfs_device_error:
+	return -EINVAL;	
+ }
+
+/* Seek and Destroy. */
+int btrfs_kill_device(u8 *label)
+{
+	struct kobject *device_kobj;
+	
+	if(!label)
+		goto kill_error;
+
+	if(!device_kobj)
+		goto kill_error;
+	kobject_put(device_kobj);	
+
+	return 0;
+
+kill_error:
+	return -EINVAL;
 }
 
 void btrfs_exit_sysfs(void)
