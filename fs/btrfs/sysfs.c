@@ -323,7 +323,7 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
 	 * kobject was added to the system.
 	 */
 	printk(KERN_INFO "btrfs: About to notify the userspace abt this\n");
-	kobject_uevent(&(btrfs_kobj->kobj), KOBJ_ADD);
+	kobject_uevent(&btrfs_kobj->kobj, KOBJ_ADD);
 
 	return btrfs_kobj;
 }
