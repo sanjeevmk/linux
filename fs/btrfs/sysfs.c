@@ -28,34 +28,19 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
+#include "sysfs.h"
 
-/*
- * struct btrfs_kobject is defined to allow kobjects to be created under 
- * btrfs_kset and also the kobjects defined under btrfs_kset.
- * 
- * The #define to_btrfs_kobject(x) is used to get the pointer to the structure 
- * using the pointer to a member of the structure.
- * 
- * v1 Comment: As of now the struct contains just the kobject and a void pointer
- * The idea is that the void pointer can be put to use in certain cases without 
- * complicating the code.
- */
 struct btrfs_kobject {
 	struct kobject kobj;
+	struct btrfs_kobject *head;
+	struct btrfs_kobject *tail;
+	int ref_count;
+	int child_count;
+	struct btrfs_kobject *first_child;
+	struct kobject *super_kobj;
 	void *ptr;
 };
-#define to_btrfs_kobject(x) container_of(x, struct btrfs_kobject, kobj)
 
-
-/* 
- * btrfs_kobject_attr lists the attributes for the struct btrfs_kobject
- * The attribute list contains the usual struct attribute and also two 
- * defined functions for showing and storing. This can be added on to.
- *
- * The #define to_btrfs_kobject_attr(x) is used to get the pointer to the 
- * structure using the pointer to a member of the structure.
- * 
- */
 struct btrfs_kobject_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct btrfs_kobject *kobj, \
@@ -65,7 +50,6 @@ struct btrfs_kobject_attr {
 };
 
 #define to_btrfs_kobject_attr(x) container_of(x, struct btrfs_kobject_attr,attr)
-
 /*
  * static ssize_t btrfs_kobject_attr_show and 
  * static ssize_t btrfs_kobject_attr_store is defined as the default show and  
@@ -316,6 +300,12 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
 	if (!btrfs_kobj)
 		return NULL;
 	btrfs_kobj->kobj.kset = btrfs_kset;
+	btrfs_kobj->head = NULL;
+	btrfs_kobj->tail = NULL;
+	btrfs_kobj->ref_count = 1;
+	btrfs_kobj->child_count = 0;
+	btrfs_kobj->first_child = NULL;
+	btrfs_kobj->ptr = NULL;
 	/*
 	 * Initialize and add the kobject to the kernel.  All the default files
 	 * will be created here.  As we have already specified a kset for this
@@ -332,7 +322,8 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
 	 * If creation is successful we need to send an uevent informing that the 
 	 * kobject was added to the system.
 	 */
-	kobject_uevent(&btrfs_kobj->kobj, KOBJ_ADD);
+	printk(KERN_INFO "btrfs: About to notify the userspace abt this\n");
+	kobject_uevent(&(btrfs_kobj->kobj), KOBJ_ADD);
 
 	return btrfs_kobj;
 }
@@ -385,32 +376,58 @@ int btrfs_init_sysfs(void)
 /* Function to create devices and place them under the devices
  * directory.
  */
- int btrfs_create_device(struct kobject *super_kobj, u8 *label)
- {
+int btrfs_create_device(struct kobject *super_kobj, u8 *label)
+{
 	struct btrfs_kobject *btrfs_device;
 
+	printk(KERN_INFO "btrfs: Entering the create device function\n");
 	btrfs_device = btrfs_kobject_create(label,btrfs_ktype_device,btrfs_devices);
 	if(!btrfs_device)
 		goto btrfs_device_error;
-	btrfs_device->ptr = (void*)super_kobj;
+	btrfs_device->super_kobj = super_kobj;
+	printk(KERN_INFO "btrfs: btrfs_device created and super block assigned.\n");
+	/* Add the device to the list of devices. */
+	if(btrfs_devices->first_child!=NULL)
+		btrfs_devices->first_child->tail = btrfs_device;
+	printk(KERN_INFO "btrfs: Pointer 1\n");
+	btrfs_device->head = btrfs_devices->first_child;
+	printk(KERN_INFO "btrfs: Pointer 2\n");
+	btrfs_device->tail = btrfs_devices;
+	printk(KERN_INFO "btrfs: Pointer 3\n");
+	btrfs_devices->first_child = btrfs_device;
+	printk(KERN_INFO "btrfs: Pointer 4\n");
 
 	return 0;
 
 btrfs_device_error:
 	return -EINVAL;	
- }
+}
 
 /* Seek and Destroy. */
 int btrfs_kill_device(u8 *label)
 {
-	struct kobject *device_kobj;
+	struct kobject *device_kobj = NULL;
+	struct btrfs_kobject *btrfs_device = NULL;
 	
 	if(!label)
 		goto kill_error;
-
+	
+	/* Search the list for the kobject with the given uuid. */
+	/*
+	if(btrfs_device)
+		btrfs_device = btrfs_devices->first_child;
+	while(btrfs_device!=NULL){
+		if(strcmp(btrfs_device->kobj.name,label)==0){
+			device_kobj = &btrfs_device->kobj;
+			break;
+		}
+	}
+		
 	if(!device_kobj)
 		goto kill_error;
 	kobject_put(device_kobj);	
+
+	*/
 
 	return 0;
 
