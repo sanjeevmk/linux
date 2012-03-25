@@ -15,18 +15,12 @@ int btrfs_kill_device(u8 *label);
  * The idea is that the void pointer can be put to use in certain cases without 
  * complicating the code.
  */
- /*
 struct btrfs_kobject {
 	struct kobject kobj;
-	struct btrfs_kobject *head;
-	struct btrfs_kobject *tail;
-	int ref_count;
-	int child_count;
-	struct btrfs_kobject *first_child;
+	struct list_head lst_head;
 	struct kobject *super_kobj;
 	void *ptr;
 };
-*/
 #define to_btrfs_kobject(x) container_of(x, struct btrfs_kobject, kobj)
 
 /* 
@@ -38,7 +32,7 @@ struct btrfs_kobject {
  * structure using the pointer to a member of the structure.
  * 
  */
- /*
+ 
 struct btrfs_kobject_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct btrfs_kobject *kobj, \
@@ -46,7 +40,7 @@ struct btrfs_kobject_attr {
 	ssize_t (*store)(struct btrfs_kobject *kobj, \
 			struct btrfs_kobject_attr *attr, const char *buf, size_t len);
 };
-*/
+
 #define to_btrfs_kobject_attr(x) container_of(x, struct btrfs_kobject_attr,attr)
 
 #endif
