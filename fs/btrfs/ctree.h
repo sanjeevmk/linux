@@ -1488,12 +1488,13 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_DEV_EXTENT_KEY	204
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
+/*+smk*/
 /*
 * Persistantly stores the io stats in the device tree.
 * One key for all stats, (0, BTRFS_DEVICE_STATS_KEY, devid).
 */
 #define BTRFS_DEVICE_STATS_KEY 248
-
+/*+smk*/
 #define BTRFS_BALANCE_ITEM_KEY	248
 
 /*

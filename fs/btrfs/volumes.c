@@ -4588,8 +4588,8 @@ int btrfs_init_device_stats(struct btrfs_fs_info *fs_info)
 		key.offset = device->devid;
 		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 		if (ret) {
-			printk(KERN_WARNING "btrfs: no device_stats entry found for device %s (devid %llu) (OK on first
-				mount after mkfs)\n",
+			printk(KERN_WARNING "btrfs: no device_stats entry found for device %s (devid %llu) (OK on first \
+				mount after mkfs)\n", \
 					device->name, (unsigned long long)device->devid);
 			__btrfs_reset_device_stats(device);
 			device->device_stats_valid = 1;
