@@ -28,10 +28,43 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "sysfs.h"
 
-/* Global list heads. */
-struct list_head device_lst_head;
+/*
+ * struct btrfs_kobject is defined to allow kobjects to be created under 
+ * btrfs_kset and also the kobjects defined under btrfs_kset.
+ * 
+ * The #define to_btrfs_kobject(x) is used to get the pointer to the structure 
+ * using the pointer to a member of the structure.
+ * 
+ * v1 Comment: As of now the struct contains just the kobject and a void pointer
+ * The idea is that the void pointer can be put to use in certain cases without 
+ * complicating the code.
+ */
+struct btrfs_kobject {
+	struct kobject kobj;
+	void *ptr;
+};
+#define to_btrfs_kobject(x) container_of(x, struct btrfs_kobject, kobj)
+
+/* 
+ * btrfs_kobject_attr lists the attributes for the struct btrfs_kobject
+ * The attribute list contains the usual struct attribute and also two 
+ * defined functions for showing and storing. This can be added on to.
+ *
+ * The #define to_btrfs_kobject_attr(x) is used to get the pointer to the 
+ * structure using the pointer to a member of the structure.
+ * 
+ */
+ 
+struct btrfs_kobject_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct btrfs_kobject *kobj, \
+			struct btrfs_kobject_attr *attr, char *buf);
+	ssize_t (*store)(struct btrfs_kobject *kobj, \
+			struct btrfs_kobject_attr *attr, const char *buf, size_t len);
+};
+
+#define to_btrfs_kobject_attr(x) container_of(x, struct btrfs_kobject_attr,attr)
 
 /*
  * static ssize_t btrfs_kobject_attr_show and 
@@ -276,7 +309,7 @@ static struct btrfs_kobject *btrfs_kobject_create(const char *name, \
 	int ret;
 	parent_kobj = NULL;
 	/* Allocate memory for object */
-	btrfs_kobj = kzalloc(sizeof(*btrfs_kobj), GFP_KERNEL);
+	btrfs_kobj = kzalloc(sizeof(*btrfs_kobj), GFP_USER);
 	if (!btrfs_kobj)
 		return NULL;
 	if(btrfs_parent != NULL) 
@@ -331,6 +364,7 @@ int btrfs_static_init_sysfs(void)
 	btrfs_info = btrfs_kobject_create("info",btrfs_ktype_info,NULL);
 	if(!btrfs_info)
 		goto btrfs_info_error;
+	//btrfs_create_device(NULL,"screwU");
 	return 0;
 
 btrfs_info_error:
@@ -347,7 +381,6 @@ int btrfs_init_sysfs(void)
 	if (!btrfs_kset)
 		return -ENOMEM;
 	/* Init the list head. */
-	INIT_LIST_HEAD(&device_lst_head);
 	return btrfs_static_init_sysfs();
 }
 
@@ -357,15 +390,16 @@ int btrfs_init_sysfs(void)
  */
 int btrfs_create_device(struct kobject *super_kobj, u8 *label)
 {
-	struct btrfs_kobject *btrfs_device;
+	//struct btrfs_kobject *btrfs_device;
 
-	printk(KERN_INFO "btrfs: Entering the create device function\n");
-	btrfs_device = btrfs_kobject_create(label,btrfs_ktype_device,btrfs_devices);
-	if(!btrfs_device)
-		goto btrfs_device_error;
-	btrfs_device->super_kobj = super_kobj;
-	printk(KERN_INFO "btrfs: btrfs_device created and super block assigned.\n");
-	list_add(&btrfs_device->lst_head,&device_lst_head);
+	//printk(KERN_INFO "btrfs: Entering the create device function\n");
+
+	//if(!btrfs_device)
+	//	goto btrfs_device_error;
+	//btrfs_device->super_kobj = super_kobj;
+	//printk(KERN_INFO "btrfs: btrfs_device created and super block assigned.\n");
+	//list_add(&btrfs_device->lst_head,&device_lst_head);
+	kobject_init_and_add(super_kobj,&btrfs_ktype_device,&btrfs_devices->kobj,"%s",label);
 
 	return 0;
 
@@ -374,56 +408,37 @@ btrfs_device_error:
 }
 
 /* Seek and Destroy. */
-int btrfs_kill_device(u8 *label)
+int btrfs_kill_device(struct kobject *kobj)
 {
-
-	struct kobject *device_kobj = NULL;
-	struct btrfs_kobject *btrfs_device = NULL;
-	
-	if(!label)
-		goto kill_error;
-
-	/* Search the list for the kobject with the given uuid. */
-	/*
-	if(btrfs_device)
-		btrfs_device = btrfs_devices->first_child;
-	while(btrfs_device!=NULL){
-		if(strcmp(btrfs_device->kobj.name,label)==0){
-			device_kobj = &btrfs_device->kobj;
-			break;
-		}
-	}
-		
-	if(!device_kobj)
-		goto kill_error;
-	kobject_put(device_kobj);	
-
-	*/
+	kobject_put(kobj);
 
 	return 0;
 
-kill_error:
-	return -EINVAL;
 }
 
 void btrfs_exit_sysfs(void)
 {
 
-	struct list_head *lst_ele;
+	//struct list_head *lst_ele;
 
-	btrfs_kobject_destroy(btrfs_devices);
-	btrfs_kobject_destroy(btrfs_health);
-	btrfs_kobject_destroy(btrfs_info);
 	/* If there are any elements left in the list
 	 * we start removing them. 
 	 */
+	 /*
 	list_for_each(lst_ele,&device_lst_head){
-		list_del(lst_ele);	
+		//list_del(lst_ele);	
+		*/
 		/* Now that the entry has been removed from the list
 		 * we free up the memory.
 		 */
+		 /*
 		 btrfs_kobject_destroy(container_of(lst_ele,struct btrfs_kobject,lst_head));
 	}
+	*/
+	btrfs_kobject_destroy(btrfs_devices);
+	btrfs_kobject_destroy(btrfs_health);
+	btrfs_kobject_destroy(btrfs_info);
+
 	kset_unregister(btrfs_kset);
 }
 

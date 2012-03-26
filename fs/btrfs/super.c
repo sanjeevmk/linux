@@ -54,7 +54,6 @@
 #include "version.h"
 #include "export.h"
 #include "compression.h"
-#include "sysfs.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
@@ -1256,7 +1255,7 @@ static void btrfs_kill_super(struct super_block *sb)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	/* We remove the entry from the device sysfs. */
-	//btrfs_kill_device(fs_info->super_copy->label);
+	btrfs_kill_device(&fs_info->super_kobj);
 	kill_anon_super(sb);
 	free_fs_info(fs_info);
 }
