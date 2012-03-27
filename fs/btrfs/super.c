@@ -985,6 +985,17 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	root = !error ? get_default_root(s, subvol_objectid) : ERR_PTR(error);
 	if (IS_ERR(root))
 		deactivate_locked_super(s);
+	
+	/* Now that the super block is setup we make calls to the required
+	 * sysfs functions.
+	 */
+	error = btrfs_create_device(&fs_info->super_kobj,fs_info->super_copy->label);
+	if(error < 0){
+		/* Just because the sysfs could not be mounted the
+		 * whole FS should not die.
+		 */
+		printk(KERN_INFO "btrfs: sysfs could not be initialized.\n"); 
+	}
 
 	return root;
 
@@ -1243,6 +1254,8 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static void btrfs_kill_super(struct super_block *sb)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	/* We remove the entry from the device sysfs. */
+	btrfs_kill_device(&fs_info->super_kobj);
 	kill_anon_super(sb);
 	free_fs_info(fs_info);
 }
