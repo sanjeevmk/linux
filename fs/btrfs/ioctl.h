@@ -266,30 +266,6 @@ struct btrfs_ioctl_logical_ino_args {
 	/* struct btrfs_data_container	*inodes;	out   */
 	__u64				inodes;
 };
-/*+smk*/
-#define BTRFS_IOCTL_GET_DEVICE_STATS_MAX_NR_ITEMS  5
-struct btrfs_ioctl_get_device_stats {
-	__u64 devid;                /* in */
-	__u64 nr_items;             /* in/out */
-
-	/* out values: */
-
-	/* disk I/O failure stats */
-	__u64 cnt_write_io_errs; /* EIO or EREMOTEIO from lower layers */
-	__u64 cnt_read_io_errs; /* EIO or EREMOTEIO from lower layers */
-	__u64 cnt_flush_io_errs; /* EIO or EREMOTEIO from lower layers */
-
-	/* stats for indirect indications for I/O failures */
-	__u64 cnt_corruption_errs; /* checksum error, bytenr error or
-					* contents is illegal: this is an
-					* indication that the block was damaged
-					* during read or write, or written to
-					* wrong location or read from wrong
-					* location */
-	__u64 cnt_generation_errs; /* an indication that blocks have not
-					* been written */
-};
-/*+smk*/
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
 				   struct btrfs_ioctl_vol_args)
@@ -355,10 +331,4 @@ struct btrfs_ioctl_get_device_stats {
 					struct btrfs_ioctl_ino_path_args)
 #define BTRFS_IOC_LOGICAL_INO _IOWR(BTRFS_IOCTL_MAGIC, 36, \
 					struct btrfs_ioctl_ino_path_args)
-/*+smk*/
-#define BTRFS_IOC_GET_DEVICE_STATS _IOWR(BTRFS_IOCTL_MAGIC, 52, \
-					struct btrfs_ioctl_get_device_stats)
-#define BTRFS_IOC_GET_AND_RESET_DEVICE_STATS _IOWR(BTRFS_IOCTL_MAGIC, 53, \
-					struct btrfs_ioctl_get_device_stats)
-/*+smk*/
 #endif

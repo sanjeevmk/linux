@@ -299,10 +299,6 @@ int btrfs_run_device_stats(struct btrfs_trans_handle *trans,
 					struct btrfs_fs_info *fs_info);
 void btrfs_device_stat_print_on_error(struct btrfs_device *device);
 
-int btrfs_get_device_stats(struct btrfs_root *root,
-				struct btrfs_ioctl_get_device_stats *stats,
-				int reset_after_read);
-
 static inline void btrfs_device_stat_inc(atomic_t *cnt)
 {
 	atomic_inc(cnt);
